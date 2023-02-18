@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .hotel-card-items {
+    @apply flex flex-row gap-x-2 items-center;
+  }
+}
