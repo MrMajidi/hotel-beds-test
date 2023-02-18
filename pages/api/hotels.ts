@@ -4,6 +4,7 @@ import axios from "axios";
 import { calculateSha256Hex } from "@/utils/util";
 import { API_BASE_URL, API_KEY } from "@/constants/constants";
 import * as Yup from "yup";
+import { serverApi } from "@/utils/apiHandler";
 
 export const HotelSearchValidationSchema = Yup.object().shape({
   checkIn: Yup.date().required("Check-in date is required"),
@@ -29,15 +30,16 @@ export default async function handler(
   res: NextApiResponse<HotelsResponse | ApiError>
 ) {
   if (_req.method === "GET") {
-    res.status(503).send({message: "Method not allowed"});
+    res.status(503).json({message: "Method not allowed"});
     return;
   }
   try {
     const body = await HotelSearchValidationSchema.validate(_req.body);
     const { checkIn, checkOut, adults, children, rooms, geoLocation } = body;
     const signature = calculateSha256Hex();
-    const response = await axios.post<HotelsResponse>(
-      `${API_BASE_URL}/hotels`,
+    
+    const response = await serverApi.post<HotelsResponse>(
+      '/hotels',
       {
         stay: {
           checkIn: checkIn.toISOString(),
@@ -58,17 +60,13 @@ export default async function handler(
       },
       {
         headers: {
-          accept: "application/json",
-          "content-type": "application/json",
-          "Accept-Encoding": "gzip",
-          "Api-Key": API_KEY,
           "X-Signature": signature,
         },
       }
     );
     res.status(200).json(response.data);
   } catch (e) {
-    res.status(400).send({
+    res.status(400).json({
       message: "Error",
       error: e
     })

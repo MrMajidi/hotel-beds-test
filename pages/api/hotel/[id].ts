@@ -1,9 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import type { ApiError, Hotel, HotelsResponse } from "@/interfaces";
-import axios from "axios";
+import type { ApiError, HotelsResponse } from "@/interfaces";
 import { calculateSha256Hex } from "@/utils/util";
-import { API_BASE_URL, API_KEY } from "@/constants/constants";
 import * as Yup from "yup";
+import { serverApi } from "@/utils/apiHandler";
 
 export const SingleHotelSearchValidationSchema = Yup.object().shape({
   checkIn: Yup.date().required("Check-in date is required"),
@@ -18,22 +17,25 @@ export const SingleHotelSearchValidationSchema = Yup.object().shape({
   children: Yup.number().default(0),
 });
 
-export type SingleHotelApiParams = Yup.InferType<typeof SingleHotelSearchValidationSchema>;
+export type SingleHotelApiParams = Yup.InferType<
+  typeof SingleHotelSearchValidationSchema
+>;
 
 export default async function handler(
   _req: NextApiRequest,
   res: NextApiResponse<HotelsResponse | ApiError>
 ) {
   if (_req.method === "GET") {
-    res.status(503).send({message: "Method not allowed"});
+    res.status(503).json({ message: "Method not allowed" });
     return;
   }
   try {
-    const {id} = _req.query
-    const { checkIn, checkOut, adults, children, rooms } = await SingleHotelSearchValidationSchema.validate(_req.body);
+    const { id } = _req.query;
+    const { checkIn, checkOut, adults, children, rooms } =
+      await SingleHotelSearchValidationSchema.validate(_req.body);
     const signature = calculateSha256Hex();
-    const response = await axios.post<HotelsResponse>(
-      `${API_BASE_URL}/hotels`,
+    const response = await serverApi.post<HotelsResponse>(
+      "/hotels",
       {
         stay: {
           checkIn: checkIn.toISOString(),
@@ -47,25 +49,21 @@ export default async function handler(
           },
         ],
         hotels: {
-            hotel: [id]
-        }
+          hotel: [id],
+        },
       },
       {
         headers: {
-          accept: "application/json",
-          "content-type": "application/json",
-          "Accept-Encoding": "gzip",
-          "Api-Key": API_KEY,
           "X-Signature": signature,
         },
       }
     );
     res.status(200).json(response.data);
   } catch (e) {
-    res.status(400).send({
+    res.status(400).json({
       message: "Error",
-      error: e
-    })
+      error: e,
+    });
     return;
   }
 }
